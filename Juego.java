@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Clase que maneja toda la lógica del Blackjack.
- * Se encarga de repartir, calcular valores y decidir el resultado de cada ronda.
+ * Lógica principal del Blackjack.
+ * Maneja mazo, manos, apuestas y reglas básicas (incluye doblar).
  */
 public class Juego {
 
@@ -20,13 +20,15 @@ public class Juego {
     private boolean rondaTerminada;
 
     public Juego() {
-        saldo = 1000;
-        apuestaActual = 100;
+        // saldo inicial razonable para pruebas
+        this.saldo = 1000;
+        this.apuestaActual = 100;
         iniciarRondaGUI();
     }
 
     /**
-     * Inicia una nueva ronda, baraja y reparte las cartas iniciales.
+     * (Re)inicia una ronda: prepara mazo, reparte cartas y revisa blackjack inicial.
+     * No cobra la apuesta hasta resolver el resultado.
      */
     public void iniciarRondaGUI() {
         mazo = generarMazo();
@@ -35,26 +37,30 @@ public class Juego {
         rondaTerminada = false;
         mensajeActual = "";
 
+        // repartir dos cartas a cada uno
         manoJugador.add(sacarCarta());
         manoCrupier.add(sacarCarta());
         manoJugador.add(sacarCarta());
         manoCrupier.add(sacarCarta());
 
+        // Verificar blackjack del jugador (3:2)
         if (calcularValor(manoJugador) == 21) {
-            mensajeActual = "¡Blackjack! Ganaste automáticamente.";
+            mensajeActual = "¡Blackjack! Ganas 3:2 sobre tu apuesta.";
             saldo += (int)(apuestaActual * 1.5);
             rondaTerminada = true;
         }
     }
 
     /**
-     * Permite modificar la apuesta antes de empezar una ronda.
+     * Establece la apuesta actual (antes de iniciar la ronda).
+     * Valida que la apuesta sea positiva y no supere el saldo.
      */
     public void setApuesta(int nuevaApuesta) {
         if (nuevaApuesta > 0 && nuevaApuesta <= saldo) {
             apuestaActual = nuevaApuesta;
+            mensajeActual = "Apuesta establecida en $" + apuestaActual;
         } else {
-            mensajeActual = "Apuesta inválida.";
+            mensajeActual = "Apuesta inválida. Usa un número entre 1 y " + saldo;
         }
     }
 
@@ -63,7 +69,7 @@ public class Juego {
     }
 
     /**
-     * Cuando el jugador pide una carta.
+     * El jugador pide carta.
      */
     public void jugadorPedir() {
         if (rondaTerminada) return;
@@ -72,20 +78,25 @@ public class Juego {
         int valor = calcularValor(manoJugador);
 
         if (valor > 21) {
-            mensajeActual = "Te pasaste con " + valor + ". Pierdes la ronda.";
+            mensajeActual = "Te pasaste con " + valor + ". Pierdes $" + apuestaActual + ".";
             saldo -= apuestaActual;
             rondaTerminada = true;
         } else if (valor == 21) {
+            // si llega a 21 automáticamente plantar y resolver
             jugadorPlantarse();
+        } else {
+            mensajeActual = "Has pedido. Tu mano ahora suma " + valor + ".";
         }
     }
 
     /**
-     * Cuando el jugador se planta, juega el crupier.
+     * El jugador se planta; el crupier juega con su regla (plantarse en 17+).
+     * Luego se resuelve el resultado y se ajusta el saldo.
      */
     public void jugadorPlantarse() {
         if (rondaTerminada) return;
 
+        // turno del crupier
         while (calcularValor(manoCrupier) < 17) {
             manoCrupier.add(sacarCarta());
         }
@@ -94,12 +105,13 @@ public class Juego {
         int valorCrupier = calcularValor(manoCrupier);
 
         if (valorCrupier > 21 || valorJugador > valorCrupier) {
-            mensajeActual = "Ganaste la ronda.";
+            mensajeActual = "Ganaste la ronda. Ganas $" + apuestaActual + ".";
             saldo += apuestaActual;
         } else if (valorJugador == valorCrupier) {
-            mensajeActual = "Empate. Se devuelve la apuesta.";
+            mensajeActual = "Empate. No se mueve tu saldo.";
+            // saldo sin cambios
         } else {
-            mensajeActual = "Perdiste la ronda.";
+            mensajeActual = "Perdiste la ronda. Pierdes $" + apuestaActual + ".";
             saldo -= apuestaActual;
         }
 
@@ -107,48 +119,50 @@ public class Juego {
     }
 
     /**
-     * Opción de doblar la apuesta.
+     * Duplicar la apuesta: solo permite pedir una carta más y luego planta automáticamente.
+     * Verifica que haya saldo suficiente para doblar.
      */
     public void jugadorDoblar() {
-        if (rondaTerminada || saldo < apuestaActual * 2) return;
+        if (rondaTerminada) return;
 
-        apuestaActual *= 2;
-        manoJugador.add(sacarCarta());
-
-        int valor = calcularValor(manoJugador);
-        if (valor > 21) {
-            mensajeActual = "Te pasaste con " + valor + ". Pierdes el doble.";
-            saldo -= apuestaActual;
-        } else {
-            jugadorPlantarse();
+        // comprobar que hay saldo para doblar
+        if (saldo < apuestaActual * 2) {
+            mensajeActual = "No tienes saldo suficiente para doblar.";
+            return;
         }
 
-        rondaTerminada = true;
+        // doblar: aumentamos la apuesta y pedir solo una carta
+        apuestaActual *= 2;
+        manoJugador.add(sacarCarta());
+        int valor = calcularValor(manoJugador);
+
+        if (valor > 21) {
+            mensajeActual = "Te pasaste tras doblar con " + valor + ". Pierdes $" + apuestaActual + ".";
+            saldo -= apuestaActual;
+            rondaTerminada = true;
+        } else {
+            // luego del doblar, se considera como plantarse
+            jugadorPlantarse();
+        }
     }
 
     /**
-     * Opción de dividir (no implementada completamente).
+     * División (split) no implementada en esta versión básica, dejamos un mensaje.
      */
     public void jugadorDividir() {
-        mensajeActual = "La opción de dividir aún no está disponible.";
+        mensajeActual = "Dividir aún no disponible en esta versión.";
     }
 
-    /**
-     * Indica si la ronda ya terminó.
-     */
     public boolean rondaTerminada() {
         return rondaTerminada;
     }
 
-    /**
-     * Devuelve el texto del resultado actual.
-     */
     public String getResultadoRonda() {
         return mensajeActual;
     }
 
     /**
-     * Devuelve el estado actual del juego.
+     * Devuelve un EstadoJuego con copias de las manos para mostrar en la vista.
      */
     public EstadoJuego getEstado() {
         return new EstadoJuego(
@@ -160,9 +174,9 @@ public class Juego {
         );
     }
 
-    // ==========================
-    // Métodos internos
-    // ==========================
+    // -------------------------
+    // MÉTODOS AUXILIARES PRIVADOS
+    // -------------------------
 
     private List<String> generarMazo() {
         String[] palos = {"♠", "♥", "♦", "♣"};
@@ -181,11 +195,14 @@ public class Juego {
 
     private String sacarCarta() {
         if (mazo.isEmpty()) {
-            mazo = generarMazo();
+            mazo = generarMazo(); // recargar si se acaba
         }
         return mazo.remove(0);
     }
 
+    /**
+     * Calcula el valor de una mano aplicando la regla de ases (11 o 1).
+     */
     private int calcularValor(List<String> mano) {
         int total = 0;
         int ases = 0;
@@ -193,9 +210,7 @@ public class Juego {
         for (String carta : mano) {
             String valor = carta.replaceAll("[♠♥♦♣]", "");
             switch (valor) {
-                case "J":
-                case "Q":
-                case "K":
+                case "J": case "Q": case "K":
                     total += 10;
                     break;
                 case "A":
@@ -207,6 +222,7 @@ public class Juego {
             }
         }
 
+        // ajustar ases si supera 21
         while (total > 21 && ases > 0) {
             total -= 10;
             ases--;

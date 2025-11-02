@@ -1,8 +1,10 @@
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import javax.swing.SwingUtilities;
 
 /**
- * Controla la comunicación entre la Vista y el Modelo.
+ * Controlador que conecta Vista y Modelo.
+ * Aquí está el main para arrancar la aplicación.
  */
 public class ControladorJuego implements ActionListener {
 
@@ -12,8 +14,9 @@ public class ControladorJuego implements ActionListener {
     public ControladorJuego(Juego modelo, VistaJuego vista) {
         this.modelo = modelo;
         this.vista = vista;
-        vista.agregarListeners(this);
-        vista.actualizarVista(modelo.getEstado());
+        this.vista.agregarListeners(this);
+        // Mostrar estado inicial
+        this.vista.actualizarVista(modelo.getEstado());
     }
 
     @Override
@@ -24,31 +27,49 @@ public class ControladorJuego implements ActionListener {
             case "Pedir":
                 modelo.jugadorPedir();
                 break;
+
             case "Plantarse":
                 modelo.jugadorPlantarse();
                 break;
+
             case "Doblar":
                 modelo.jugadorDoblar();
                 break;
-            case "NuevaRonda":
-                modelo.iniciarRondaGUI();
+
+            case "Dividir":
+                modelo.jugadorDividir();
                 break;
+
             case "Apostar":
-                int nuevaApuesta = vista.obtenerApuestaIngresada();
-                if (nuevaApuesta > 0) {
-                    modelo.setApuesta(nuevaApuesta);
+                int nueva = vista.obtenerApuestaIngresada();
+                if (nueva > 0) {
+                    modelo.setApuesta(nueva);
                 } else {
-                    vista.mostrarMensaje("Apuesta inválida.");
+                    vista.mostrarMensaje("Apuesta inválida. Escribe un número menor o igual a tu saldo.");
                 }
+                break;
+
+            case "NuevaRonda":
+                // Antes de iniciar, nos aseguramos de que la apuesta sea válida
+                modelo.iniciarRondaGUI();
                 break;
         }
 
+        // Actualizamos la vista con el estado resultante
         vista.actualizarVista(modelo.getEstado());
+
+        // Si la ronda terminó, mostramos el resultado en un diálogo para que se note
+        if (modelo.rondaTerminada()) {
+            vista.mostrarMensaje(modelo.getResultadoRonda());
+        }
     }
 
     public static void main(String[] args) {
-        Juego modelo = new Juego();
-        VistaJuego vista = new VistaJuego();
-        new ControladorJuego(modelo, vista);
+        // Iniciar la GUI en el hilo de eventos
+        SwingUtilities.invokeLater(() -> {
+            Juego modelo = new Juego();
+            VistaJuego vista = new VistaJuego();
+            new ControladorJuego(modelo, vista);
+        });
     }
 }

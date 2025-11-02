@@ -1,8 +1,8 @@
 import java.util.List;
 
 /**
- * Clase simple para transportar la información del estado del juego
- * entre el modelo (Juego) y la vista.
+ * Contenedor simple para pasar información del modelo a la vista.
+ * Evita exponer las estructuras internas del modelo directamente.
  */
 public class EstadoJuego {
 
@@ -40,4 +40,3 @@ public class EstadoJuego {
         return apuesta;
     }
 }
-
